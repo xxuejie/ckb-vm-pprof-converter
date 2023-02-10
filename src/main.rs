@@ -1,7 +1,7 @@
 mod protos;
 
 use crate::protos::profile;
-use clap::{arg, command};
+use clap::{arg, command, value_parser};
 use protobuf::Message;
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
@@ -29,25 +29,24 @@ struct Frame {
     cycles: u64,
 }
 
-const SAMPLES: &str = "samples";
+const CYCLES: &str = "cycles";
 const COUNT: &str = "count";
-const CPU: &str = "cpu";
+const CPU: &str = "fakecpu";
 const NANOSECONDS: &str = "nanoseconds";
-
-// TODO: make this a CLI argument, right now it's set as 1Ghz, meaning
-// 1 CKB cycle takes 1 nanosecond to run.
-const FREQUENCY: u64 = 1_000_000_000;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let matches = command!()
-        .arg(arg!(--"output-file" <VALUE>).default_value("output.pprof"))
-        .arg(arg!(--"input-file" <VALUE>).default_value("-"))
+        .arg(arg!(--"output-file" <VALUE> "Output file path to generate").default_value("output.pprof"))
+        .arg(arg!(--"input-file" <VALUE> "Input file path, use '-' to denote stdin").default_value("-"))
+        .arg(arg!(--"frequency" <VALUE> "Frequency to use, default value is 0.5Ghz, meaning 1 CKB cycle takes roughly 2 nanoseconds to run, which resembles on real stats gathered on CKB mainnet")
+                .default_value("500000000").value_parser(value_parser!(i64)))
         .get_matches();
 
     let output_file = matches
         .get_one::<String>("output-file")
         .expect("output file");
     let input_file = matches.get_one::<String>("input-file").expect("input file");
+    let frequency = *matches.get_one::<i64>("frequency").expect("frequency");
 
     let mut frames = Vec::new();
 
@@ -89,7 +88,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    dedup_str.insert(SAMPLES.into());
+    dedup_str.insert(CYCLES.into());
     dedup_str.insert(COUNT.into());
     dedup_str.insert(CPU.into());
     dedup_str.insert(NANOSECONDS.into());
@@ -145,7 +144,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             location_id: locs,
             value: vec![
                 *cycles as i64,
-                *cycles as i64 * 1_000_000_000 / FREQUENCY as i64,
+                *cycles as i64 * 1_000_000_000 / frequency,
             ],
             label: vec![].into(),
             ..Default::default()
@@ -153,7 +152,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         samples.push(sample);
     }
     let samples_value = profile::ValueType {
-        field_type: strings[SAMPLES] as i64,
+        field_type: strings[CYCLES] as i64,
         unit: strings[COUNT] as i64,
         ..Default::default()
     };
@@ -169,7 +168,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         function: fn_tbl.into(),
         location: loc_tbl.into(),
         period_type: Some(time_value).into(),
-        period: 1_000_000_000 / FREQUENCY as i64,
+        period: 1_000_000_000 / frequency,
         ..Default::default()
     };
     let data = profile.write_to_bytes().expect("protobuf serialization");
