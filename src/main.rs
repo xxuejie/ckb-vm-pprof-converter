@@ -4,6 +4,8 @@ use crate::protos::profile;
 use clap::{arg, command};
 use protobuf::Message;
 use std::collections::{HashMap, HashSet};
+use std::fs::File;
+use std::io::{self, BufRead, BufReader};
 use std::str::FromStr;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -39,13 +41,24 @@ const FREQUENCY: u64 = 1_000_000_000;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let matches = command!()
         .arg(arg!(--"output-file" <VALUE>).default_value("output.pprof"))
+        .arg(arg!(--"input-file" <VALUE>).default_value("-"))
         .get_matches();
 
-    let output_file = matches.get_one::<String>("output-file").expect("output file");
+    let output_file = matches
+        .get_one::<String>("output-file")
+        .expect("output file");
+    let input_file = matches.get_one::<String>("input-file").expect("input file");
 
     let mut frames = Vec::new();
 
-    for line in std::io::stdin().lines() {
+    let lines: Box<dyn Iterator<Item = Result<String, io::Error>>> = if input_file == "-" {
+        Box::new(io::stdin().lines())
+    } else {
+        let file = File::open(&input_file).expect("open file");
+        Box::new(BufReader::new(file).lines())
+    };
+
+    for line in lines {
         let line = line?;
         let i = line.rfind(" ").expect("no cycles available!");
 
