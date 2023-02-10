@@ -1,6 +1,7 @@
 mod protos;
 
 use crate::protos::profile;
+use clap::{arg, command};
 use protobuf::Message;
 use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
@@ -36,6 +37,12 @@ const NANOSECONDS: &str = "nanoseconds";
 const FREQUENCY: u64 = 1_000_000_000;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let matches = command!()
+        .arg(arg!(--"output-file" <VALUE>).default_value("output.pprof"))
+        .get_matches();
+
+    let output_file = matches.get_one::<String>("output-file").expect("output file");
+
     let mut frames = Vec::new();
 
     for line in std::io::stdin().lines() {
@@ -153,7 +160,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ..Default::default()
     };
     let data = profile.write_to_bytes().expect("protobuf serialization");
-    std::fs::write("output.pprof", data)?;
+    std::fs::write(&output_file, data)?;
 
     Ok(())
 }

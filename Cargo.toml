@@ -11,4 +11,5 @@ protoc-rust = "2.0"
 protoc-bin-vendored = "3.0.0"
 
 [dependencies]
+clap = { version = "4.0.27", features = ["cargo"] }
 protobuf = { version = "2.25.1", features = ["with-bytes", "with-serde"] }
