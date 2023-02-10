@@ -47,10 +47,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .map(|s| match s.find(":") {
                 Some(j) => Symbol {
                     file: Some(s[0..j].to_string()),
-                    name: Some(s[j + 1..s.len()].to_string()),
+                    name: Some(normalize_function_name(&s[j + 1..s.len()])),
                 },
                 None => Symbol {
-                    name: Some(s.to_string()),
+                    name: Some(normalize_function_name(s)),
                     file: None,
                 },
             })
@@ -156,4 +156,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     std::fs::write("output.pprof", data)?;
 
     Ok(())
+}
+
+fn normalize_function_name(name: &str) -> String {
+    name.replace("<", "{").replace(">", "}").to_string()
 }
